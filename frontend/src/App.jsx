@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
 import './App.css';
-
-// Context: Vercel environment vs Local
-// In Vercel, we use /api/guestbook (rewritten to backend)
-// In Local, we might need http://localhost:3000/guestbook if not using proxy
-const API_URL = import.meta.env.PROD
-  ? '/api/guestbook'
-  : 'http://localhost:3000/guestbook';
 
 function App() {
   const [entries, setEntries] = useState([]);
@@ -15,10 +9,13 @@ function App() {
 
   const fetchEntries = async () => {
     try {
-      const res = await fetch(API_URL);
-      if (res.ok) {
-        setEntries(await res.json());
-      }
+      const { data, error } = await supabase
+        .from('guestbook')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setEntries(data || []);
     } catch (error) {
       console.error('Failed to fetch entries', error);
     }
@@ -30,20 +27,21 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const method = editingId ? 'PUT' : 'POST';
-    const url = editingId ? `${API_URL}/${editingId}` : API_URL;
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server error: ${res.status}`);
+      if (editingId) {
+        const { error } = await supabase
+          .from('guestbook')
+          .update({ name: form.name, message: form.message })
+          .eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('guestbook')
+          .insert([{ name: form.name, message: form.message }]);
+        if (error) throw error;
       }
+
       setForm({ name: '', message: '' });
       setEditingId(null);
       fetchEntries();
@@ -56,7 +54,11 @@ function App() {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+      const { error } = await supabase
+        .from('guestbook')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
       fetchEntries();
     } catch (error) {
       console.error('Failed to delete entry', error);

@@ -5,7 +5,6 @@ import './App.css';
 function App() {
   const [entries, setEntries] = useState([]);
   const [form, setForm] = useState({ name: '', message: '' });
-  const [editingId, setEditingId] = useState(null);
 
   const fetchEntries = async () => {
     try {
@@ -29,45 +28,18 @@ function App() {
     e.preventDefault();
 
     try {
-      if (editingId) {
-        const { error } = await supabase
-          .from('guestbook')
-          .update({ name: form.name, message: form.message })
-          .eq('id', editingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('guestbook')
-          .insert([{ name: form.name, message: form.message }]);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from('guestbook')
+        .insert([{ name: form.name, message: form.message }]);
+      if (error) throw error;
 
       setForm({ name: '', message: '' });
-      setEditingId(null);
       fetchEntries();
       alert('Message signed successfully!');
     } catch (error) {
       console.error('Failed to save entry', error);
       alert('Failed to sign guestbook: ' + error.message);
     }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const { error } = await supabase
-        .from('guestbook')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-      fetchEntries();
-    } catch (error) {
-      console.error('Failed to delete entry', error);
-    }
-  };
-
-  const startEdit = (entry) => {
-    setEditingId(entry.id);
-    setForm({ name: entry.name, message: entry.message });
   };
 
   return (
@@ -95,13 +67,7 @@ function App() {
             />
           </div>
           <div className="actions">
-            <button type="submit">{editingId ? 'Update' : 'Sign Guestbook'}</button>
-            {editingId && (
-              <button type="button" onClick={() => {
-                setEditingId(null);
-                setForm({ name: '', message: '' });
-              }} className="secondary">Cancel</button>
-            )}
+            <button type="submit">Sign Guestbook</button>
           </div>
         </form>
       </div>
@@ -114,10 +80,6 @@ function App() {
               <span className="date">{new Date(entry.created_at).toLocaleDateString()}</span>
             </div>
             <p className="entry-message">{entry.message}</p>
-            <div className="entry-actions">
-              <button onClick={() => startEdit(entry)} className="icon-btn">Edit</button>
-              <button onClick={() => handleDelete(entry.id)} className="icon-btn delete">Delete</button>
-            </div>
           </div>
         ))}
       </div>
@@ -126,3 +88,4 @@ function App() {
 }
 
 export default App;
+
